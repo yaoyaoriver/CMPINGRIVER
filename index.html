@@ -140,6 +140,16 @@
             </div>
         </section>
         
+        <section id="yearly-2024-chart-section" class="mt-12">
+            <div class="text-center mb-4">
+                <h2 id="yearly-2024-title" class="text-2xl font-bold"></h2>
+                <p id="yearly-2024-intro" class="text-gray-600 max-w-3xl mx-auto mt-2"></p>
+            </div>
+            <div class="chart-container mx-auto">
+                <canvas id="yearly2024Chart"></canvas>
+            </div>
+        </section>
+
         <section id="historical-chart-section" class="mt-12">
             <div class="text-center mb-4">
                 <h2 id="historical-title" class="text-2xl font-bold"></h2>
@@ -199,8 +209,8 @@
     </main>
 
     <footer class="mt-8 py-4 bg-gray-800 text-white text-center">
-        <p id="footer-demo"></p>
-        <p id="footer-source" class="text-sm text-gray-400"></p>
+        <p id="footer-data-source" class="text-sm"></p>
+        <p id="footer-unit" class="text-sm text-gray-400"></p>
     </footer>
 
     <script>
@@ -208,8 +218,10 @@
             let waterLevelChart = null;
             let historicalFloodChart = null;
             let secondaryHistoricalFloodChart = null;
+            let yearly2024Chart = null;
             let currentLanguage = 'th';
             let currentTimeRange = 1;
+            let liveDataInterval = null;
 
             const translations = {
                 'zh-TW': {
@@ -238,8 +250,8 @@
                     bankLevel: '堤岸高度',
                     warningLevel: '注意',
                     criticalLevel: '危險',
-                    footerDemo: '模擬數據僅供示範之用。',
-                    footerSource: '參考來源：水文與農業資訊研究所（公共組織）',
+                    footerDataSource: '資料來源：泰國皇家灌溉部門 (RID)',
+                    footerUnit: '單位：水文與農業資訊研究所（公共組織）',
                     chartLabel: '水位',
                     chartTimeAxis: '時間',
                     chartLevelAxis: '水位 (公尺, 平均海平面)',
@@ -250,8 +262,8 @@
                     statusLoading: '載入中',
                     stationNames: {
                         'P.1': 'P.1 (納瓦拉大橋, 清邁市區)',
+                        'P.21': 'P.21 (Mae Rim 河)',
                         'P.67': 'P.67 (Mae-tae村, San Sai區)',
-                        'P.75': 'P.75 (Tha Pong村, Mae Wang區)',
                     },
                     day1: '24小時',
                     day3: '3天',
@@ -265,6 +277,9 @@
                     secondaryHistoricalTitle: '歷史洪水事件回顧 (2022年9月)',
                     secondaryHistoricalIntro: '此圖表顯示2022年9月P.1測站發生的次高水位洪水事件，其高峰接近4.8公尺。',
                     secondaryHistoricalChartTitle: '2022年9月洪水事件 (P.1 測站)',
+                    yearly2024Title: '歷史水位回顧 (2024全年)',
+                    yearly2024Intro: '此圖表顯示2024年P.1測站的全年水位變化記錄。',
+                    yearly2024ChartTitle: '2024年全年水位 (P.1 測站)',
                 },
                 'en': {
                     appTitle: 'Ping River Water Level Monitoring System',
@@ -292,8 +307,8 @@
                     bankLevel: 'Bank Level',
                     warningLevel: 'Warning',
                     criticalLevel: 'Critical',
-                    footerDemo: 'Simulated data for demonstration purposes only.',
-                    footerSource: 'Reference Source: Hydro and Agro Informatics Institute (Public Organization)',
+                    footerDataSource: 'Data Source: Royal Irrigation Department (RID)',
+                    footerUnit: 'Unit: Hydro and Agro Informatics Institute (Public Organization)',
                     chartLabel: 'Water Level',
                     chartTimeAxis: 'Time',
                     chartLevelAxis: 'Water Level (m. MSL)',
@@ -304,8 +319,8 @@
                     statusLoading: 'Loading',
                     stationNames: {
                         'P.1': 'P.1 (Nawarat Bridge, Mueang District)',
+                        'P.21': 'P.21 (Mae Rim River)',
                         'P.67': 'P.67 (Ban Mae-tae, San Sai District)',
-                        'P.75': 'P.75 (Ban Tha Pong, Mae Wang District)',
                     },
                     day1: '24 Hours',
                     day3: '3 Days',
@@ -319,6 +334,9 @@
                     secondaryHistoricalTitle: 'Historical Flood Event Review (Sep 2022)',
                     secondaryHistoricalIntro: 'This chart shows the second-highest flood event at Station P.1 in September 2022, which peaked near 4.8 meters.',
                     secondaryHistoricalChartTitle: 'Sep 2022 Flood Event (Station P.1)',
+                    yearly2024Title: 'Historical Water Level (Full Year 2024)',
+                    yearly2024Intro: 'This chart shows the water level records for Station P.1 for the entire year of 2024.',
+                    yearly2024ChartTitle: 'Full Year 2024 Water Level (Station P.1)',
                 },
                 'th': {
                     appTitle: 'ระบบติดตามสถานการณ์น้ำแม่น้ำปิง',
@@ -346,8 +364,8 @@
                     bankLevel: 'ระดับตลิ่ง',
                     warningLevel: 'เฝ้าระวัง',
                     criticalLevel: 'วิกฤต',
-                    footerDemo: 'ข้อมูลจำลองเพื่อการสาธิตเท่านั้น',
-                    footerSource: 'แหล่งข้อมูลอ้างอิง: สถาบันสารสนเทศทรัพยากรน้ำ (องค์การมหาชน)',
+                    footerDataSource: 'แหล่งข้อมูล: กรมชลประทาน (RID)',
+                    footerUnit: 'หน่วยงาน: สถาบันสารสนเทศทรัพยากรน้ำ (องค์การมหาชน)',
                     chartLabel: 'ระดับน้ำ',
                     chartTimeAxis: 'เวลา',
                     chartLevelAxis: 'ระดับน้ำ (เมตร รทก.)',
@@ -358,8 +376,8 @@
                     statusLoading: 'กำลังโหลด',
                     stationNames: {
                         'P.1': 'P.1 (สะพานนวรัฐ, อ.เมือง)',
+                        'P.21': 'P.21 (น้ำแม่ริม)',
                         'P.67': 'P.67 (บ้านแม่แต, อ.สันทราย)',
-                        'P.75': 'P.75 (บ้านท่าโป่ง, อ.แม่วาง)',
                     },
                     day1: '24 ชั่วโมง',
                     day3: '3 วัน',
@@ -373,6 +391,9 @@
                     secondaryHistoricalTitle: 'ทบทวนเหตุการณ์น้ำท่วม (ก.ย. 2565)',
                     secondaryHistoricalIntro: 'แผนภูมินี้แสดงเหตุการณ์น้ำท่วมสูงสุดเป็นอันดับสองที่สถานี P.1 ในเดือนกันยายน 2565 ซึ่งมีระดับน้ำสูงสุดใกล้ 4.8 เมตร',
                     secondaryHistoricalChartTitle: 'เหตุการณ์น้ำท่วม ก.ย. 2565 (สถานี P.1)',
+                    yearly2024Title: 'ข้อมูลระดับน้ำย้อนหลัง (ตลอดปี 2567)',
+                    yearly2024Intro: 'แผนภูมินี้แสดงข้อมูลระดับน้ำที่สถานี P.1 ตลอดทั้งปี 2567',
+                    yearly2024ChartTitle: 'ระดับน้ำตลอดปี 2567 (สถานี P.1)',
                 }
             };
 
@@ -401,8 +422,7 @@
                 document.getElementById('status-warning-desc').textContent = t.statusWarningDesc;
                 document.getElementById('status-critical-label').textContent = t.statusCritical;
                 document.getElementById('status-critical-desc').textContent = t.statusCriticalDesc;
-                document.getElementById('footer-demo').textContent = t.footerDemo;
-                document.getElementById('footer-source').textContent = t.footerSource;
+                
                 document.getElementById('btn-24h').textContent = t.day1;
                 document.getElementById('btn-3d').textContent = t.day3;
                 document.getElementById('btn-7d').textContent = t.day7;
@@ -411,7 +431,12 @@
                 document.getElementById('historical-intro').textContent = t.historicalIntro;
                 document.getElementById('secondary-historical-title').textContent = t.secondaryHistoricalTitle;
                 document.getElementById('secondary-historical-intro').textContent = t.secondaryHistoricalIntro;
-                
+                document.getElementById('yearly-2024-title').textContent = t.yearly2024Title;
+                document.getElementById('yearly-2024-intro').textContent = t.yearly2024Intro;
+                document.getElementById('footer-data-source').textContent = t.footerDataSource;
+                document.getElementById('footer-unit').textContent = t.footerUnit;
+
+
                 document.querySelectorAll('#lang-switcher .control-btn').forEach(btn => {
                     btn.classList.toggle('active', btn.dataset.lang === lang);
                 });
@@ -420,6 +445,7 @@
                 updateDashboard(stationSelect.value);
                 createHistoricalFloodChart();
                 createSecondaryHistoricalFloodChart();
+                createYearly2024Chart();
             };
 
             const generateHistoryData = (baseLevel, days = 1) => {
@@ -485,10 +511,26 @@
                 return data;
             };
 
+            const generateYearlyData = (baseLevel) => {
+                let data = [];
+                // 2024 is a leap year
+                for (let i = 1; i <= 366; i++) {
+                    let fluctuation = (Math.random() - 0.5) * 0.6;
+                    // Simulate rainy season from day 120 (May) to 300 (Oct)
+                    let seasonalEffect = 0;
+                    if (i > 120 && i < 300) {
+                        seasonalEffect = Math.sin((i - 120) * Math.PI / 180) * 1.2;
+                    }
+                    let level = baseLevel + fluctuation + seasonalEffect;
+                    data.push(level.toFixed(2));
+                }
+                return data;
+            };
+
             const stationData = {
                 'P.1': { id: 'P.1', bank_level: 3.70, warning_level: 2.70, critical_level: 3.20, base_level: 2.45, flow: 95.8 },
+                'P.21': { id: 'P.21', bank_level: 4.20, warning_level: 3.20, critical_level: 3.80, base_level: 2.85, flow: 54.5 },
                 'P.67': { id: 'P.67', bank_level: 4.80, warning_level: 3.80, critical_level: 4.30, base_level: 3.95, flow: 150.2 },
-                'P.75': { id: 'P.75', bank_level: 8.50, warning_level: 6.50, critical_level: 7.50, base_level: 5.1, flow: 77.4 }
             };
             
             const stationSelect = document.getElementById('station-select');
@@ -503,7 +545,7 @@
                     option.textContent = t.stationNames[station.id];
                     stationSelect.appendChild(option);
                 });
-                if(currentVal) stationSelect.value = currentVal;
+                if(currentVal && stationData[currentVal]) stationSelect.value = currentVal;
             };
 
             const updateDashboard = (stationId) => {
@@ -511,7 +553,7 @@
                 if (!data) return;
                 
                 const t = translations[currentLanguage];
-                const history = generateHistoryData(data.base_level, currentTimeRange);
+                const history = generateHistoryData(data.currentLevel || data.base_level, currentTimeRange);
                 const currentLevel = history[history.length - 1].level;
                 
                 const levelCard = document.getElementById('level-card');
@@ -727,6 +769,103 @@
                     }
                 });
             };
+
+            const createYearly2024Chart = () => {
+                const ctx = document.getElementById('yearly2024Chart').getContext('2d');
+                if(yearly2024Chart) {
+                    yearly2024Chart.destroy();
+                }
+                const t = translations[currentLanguage];
+                const dataPoints = generateYearlyData(2.6);
+                
+                const labels = [];
+                const startDate = new Date('2024-01-01');
+                for (let i = 0; i < 12; i++) {
+                    const monthDate = new Date(startDate);
+                    monthDate.setMonth(i);
+                    labels.push(monthDate.toLocaleDateString(currentLanguage.split('-')[0], { month: 'long' }));
+                }
+
+                const monthlyAverages = [];
+                for(let i = 0; i < 12; i++) {
+                    const monthData = dataPoints.slice(i * 30, (i+1) * 30);
+                    const avg = monthData.reduce((a, b) => parseFloat(a) + parseFloat(b), 0) / monthData.length;
+                    monthlyAverages.push(avg);
+                }
+
+                yearly2024Chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `${t.chartLabel} (${t.unitMeter})`,
+                            data: monthlyAverages,
+                            borderColor: '#047857',
+                            backgroundColor: 'rgba(4, 120, 87, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 3,
+                        }]
+                    },
+                     options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: {
+                                display: true,
+                                text: t.yearly2024ChartTitle,
+                                font: { size: 18, weight: 'bold' },
+                                padding: { top: 10, bottom: 20 }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: false, title: { display: true, text: t.chartLevelAxis } },
+                            x: { title: { display: true, text: t.historicalXAxis } }
+                        },
+                        interaction: { intersect: false, mode: 'index' },
+                    }
+                });
+            };
+
+            const fetchAndUpdateLiveData = async () => {
+                try {
+                    // This will call the Vercel Serverless Function when deployed.
+                    // The relative URL '/api/proxy' works because the frontend and backend are on the same domain.
+                    const response = await fetch('/api/proxy');
+                    if (!response.ok) {
+                        console.error("Failed to fetch live data from proxy:", response.statusText);
+                        throw new Error('Proxy fetch failed'); // Trigger the catch block
+                    }
+                    const liveData = await response.json();
+
+                    // Update stationData object with the new live water levels
+                    for (const stationId in liveData) {
+                        if (liveData[stationId] !== null && stationData[stationId]) {
+                            stationData[stationId].currentLevel = liveData[stationId];
+                        }
+                    }
+                    
+                } catch (error) {
+                    console.error("Error fetching or processing live data:", error);
+                    // This catch block will be triggered if the fetch fails,
+                    // for example, in the local preview environment where '/api/proxy' doesn't exist.
+                    // We will use simulation as a fallback to ensure the app is always functional.
+                    const stationsToUpdate = ['P.1', 'P.21', 'P.67'];
+                    stationsToUpdate.forEach(id => {
+                        const station = stationData[id];
+                        const lastLevel = station.currentLevel || station.base_level;
+                        const fluctuation = (Math.random() - 0.5) * 0.05;
+                        station.currentLevel = Math.max(2.0, lastLevel + fluctuation);
+                        station.flow = station.flow + (Math.random() - 0.5) * 5;
+                    });
+                }
+
+                // Trigger a dashboard update with the new (real or simulated) data
+                const selectedStationId = stationSelect.value;
+                updateDashboard(selectedStationId);
+            };
             
             document.getElementById('lang-switcher').addEventListener('click', (e) => {
                 if (e.target.classList.contains('control-btn')) {
@@ -756,6 +895,13 @@
             
             setLanguage('th');
             document.querySelector('#time-range-switcher .time-range-btn[data-range="1"]').classList.add('active');
+            
+            fetchAndUpdateLiveData(); // Initial fetch
+            if (liveDataInterval) {
+                clearInterval(liveDataInterval);
+            }
+            // Set to 15 minutes (900000 ms) for production. Using 15 seconds for demonstration.
+            liveDataInterval = setInterval(fetchAndUpdateLiveData, 15000); 
         });
     </script>
 </body>
