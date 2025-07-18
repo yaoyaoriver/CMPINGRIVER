@@ -43,19 +43,34 @@
         .status-normal { border-left: 8px solid #22c55e; }
         .status-warning { border-left: 8px solid #facc15; }
         .status-critical { border-left: 8px solid #ef4444; }
-        .lang-btn {
+        .control-btn {
             padding: 0.5rem 1rem;
             border-radius: 0.5rem;
             background-color: rgba(255, 255, 255, 0.2);
             transition: background-color 0.2s;
         }
-        .lang-btn:hover {
+        .control-btn:hover {
             background-color: rgba(255, 255, 255, 0.4);
         }
-        .lang-btn.active {
+        .control-btn.active {
             background-color: #ffffff;
             color: #3b82f6;
             font-weight: bold;
+        }
+        .time-range-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db;
+            background-color: #ffffff;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+        }
+        .time-range-btn:hover {
+            background-color: #f3f4f6;
+        }
+        .time-range-btn.active {
+            background-color: #3b82f6;
+            color: #ffffff;
+            border-color: #3b82f6;
         }
     </style>
 </head>
@@ -68,9 +83,9 @@
                 <p id="app-subtitle" class="text-lg text-blue-200"></p>
             </div>
             <div id="lang-switcher" class="flex space-x-2">
-                <button class="lang-btn" data-lang="zh-TW">繁體中文</button>
-                <button class="lang-btn" data-lang="en">English</button>
-                <button class="lang-btn" data-lang="th">ไทย</button>
+                <button class="control-btn" data-lang="zh-TW">繁體中文</button>
+                <button class="control-btn" data-lang="en">English</button>
+                <button class="control-btn" data-lang="th">ไทย</button>
             </div>
         </div>
     </header>
@@ -114,12 +129,28 @@
         </section>
 
         <section id="chart-section" class="mb-8">
+            <div class="flex justify-center mb-4 space-x-2" id="time-range-switcher">
+                 <button class="time-range-btn" data-range="1" id="btn-24h"></button>
+                 <button class="time-range-btn" data-range="3" id="btn-3d"></button>
+                 <button class="time-range-btn" data-range="7" id="btn-7d"></button>
+                 <button class="time-range-btn" data-range="30" id="btn-30d"></button>
+            </div>
             <div class="chart-container mx-auto">
                 <canvas id="waterLevelChart"></canvas>
             </div>
         </section>
+        
+        <section id="historical-chart-section" class="mt-12">
+            <div class="text-center mb-4">
+                <h2 id="historical-title" class="text-2xl font-bold"></h2>
+                <p id="historical-intro" class="text-gray-600 max-w-3xl mx-auto mt-2"></p>
+            </div>
+            <div class="chart-container mx-auto">
+                <canvas id="historicalFloodChart"></canvas>
+            </div>
+        </section>
 
-        <section id="info-section" class="bg-white p-6 rounded-lg shadow">
+        <section id="info-section" class="bg-white p-6 rounded-lg shadow mt-12">
             <h2 id="threshold-title" class="text-2xl font-bold mb-4"></h2>
              <p id="threshold-intro" class="text-gray-600 mb-4"></p>
             <div class="overflow-x-auto">
@@ -165,14 +196,16 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             let waterLevelChart = null;
+            let historicalFloodChart = null;
             let currentLanguage = 'th';
+            let currentTimeRange = 1;
 
             const translations = {
                 'zh-TW': {
                     appTitle: '萍河水位監測系統',
                     appSubtitle: '清邁府',
                     stationSelectLabel: '選擇監測站：',
-                    dashboardIntro: '此部分提供您所選測站的最新水情摘要，包括目前水位、流量及整體警戒狀態。下方圖表顯示過去24小時的水位趨勢，以助您快速評估情況。',
+                    dashboardIntro: '此部分提供您所選測站的最新水情摘要，包括目前水位、流量及整體警戒狀態。下方圖表顯示所選時間範圍內的水位趨勢，以助您快速評估情況。',
                     kpiLevelTitle: '目前水位',
                     kpiLevelUnit: '相對平均海平面',
                     kpiFlowTitle: '水流量',
@@ -199,7 +232,7 @@
                     chartLabel: '水位',
                     chartTimeAxis: '時間',
                     chartLevelAxis: '水位 (公尺, 平均海平面)',
-                    chartTitle: '水位 - 最近24小時',
+                    chartTitle: '即時水位趨勢',
                     chartWarningLabel: '注意水位',
                     chartCriticalLabel: '危險水位',
                     unitMeter: '公尺',
@@ -208,13 +241,22 @@
                         'P.1': 'P.1 (納瓦拉大橋, 清邁市區)',
                         'P.67': 'P.67 (Mae-tae村, San Sai區)',
                         'P.75': 'P.75 (Tha Pong村, Mae Wang區)',
-                    }
+                    },
+                    day1: '24小時',
+                    day3: '3天',
+                    day7: '7天',
+                    day30: '30天',
+                    historicalTitle: '歷史洪水事件回顧',
+                    historicalIntro: '此圖表顯示2022年P.1測站發生重大洪水事件（水位超過5公尺）前後60天的水位變化，以供歷史參考與比較。',
+                    historicalChartTitle: '2022年洪水事件 (P.1 測站)',
+                    historicalPeak: '歷史洪峰',
+                    historicalXAxis: '日期'
                 },
                 'en': {
                     appTitle: 'Ping River Water Level Monitoring System',
                     appSubtitle: 'Chiang Mai Province',
                     stationSelectLabel: 'Select Monitoring Station:',
-                    dashboardIntro: 'This section provides a summary of the latest water situation from your selected station, including the current water level, flow rate, and overall alert status. The chart below shows the water level trend over the past 24 hours to help you quickly assess the situation.',
+                    dashboardIntro: 'This section provides a summary of the latest water situation from your selected station, including the current water level, flow rate, and overall alert status. The chart below shows the water level trend over the selected time range to help you quickly assess the situation.',
                     kpiLevelTitle: 'Current Water Level',
                     kpiLevelUnit: 'Relative to mean sea level',
                     kpiFlowTitle: 'Water Flow Rate',
@@ -241,7 +283,7 @@
                     chartLabel: 'Water Level',
                     chartTimeAxis: 'Time',
                     chartLevelAxis: 'Water Level (m. MSL)',
-                    chartTitle: 'Water Level - Last 24 Hours',
+                    chartTitle: 'Real-time Water Level Trend',
                     chartWarningLabel: 'Warning Level',
                     chartCriticalLabel: 'Critical Level',
                     unitMeter: 'm',
@@ -250,13 +292,22 @@
                         'P.1': 'P.1 (Nawarat Bridge, Mueang District)',
                         'P.67': 'P.67 (Ban Mae-tae, San Sai District)',
                         'P.75': 'P.75 (Ban Tha Pong, Mae Wang District)',
-                    }
+                    },
+                    day1: '24 Hours',
+                    day3: '3 Days',
+                    day7: '7 Days',
+                    day30: '30 Days',
+                    historicalTitle: 'Historical Flood Event Review',
+                    historicalIntro: 'This chart shows the 60-day water level variation around the 2022 major flood event (level exceeding 5 meters) at Station P.1, for historical reference and comparison.',
+                    historicalChartTitle: '2022 Flood Event (Station P.1)',
+                    historicalPeak: 'Historical Peak',
+                    historicalXAxis: 'Date'
                 },
                 'th': {
                     appTitle: 'ระบบติดตามสถานการณ์น้ำแม่น้ำปิง',
                     appSubtitle: 'จังหวัดเชียงใหม่',
                     stationSelectLabel: 'เลือกสถานีวัดน้ำ:',
-                    dashboardIntro: 'ส่วนนี้จะแสดงข้อมูลสรุปสถานการณ์น้ำล่าสุดจากสถานีที่คุณเลือก ประกอบด้วยระดับน้ำปัจจุบัน ปริมาณน้ำไหลผ่าน และสถานะการเตือนภัยโดยรวม แผนภูมิด้านล่างจะแสดงแนวโน้มของระดับน้ำในช่วง 24 ชั่วโมงที่ผ่านมา เพื่อช่วยให้เห็นภาพรวมและประเมินสถานการณ์ได้อย่างรวดเร็ว',
+                    dashboardIntro: 'ส่วนนี้จะแสดงข้อมูลสรุปสถานการณ์น้ำล่าสุดจากสถานีที่คุณเลือก ประกอบด้วยระดับน้ำปัจจุบัน ปริมาณน้ำไหลผ่าน และสถานะการเตือนภัยโดยรวม แผนภูมิด้านล่างจะแสดงแนวโน้มของระดับน้ำตามช่วงเวลาที่เลือก เพื่อช่วยให้เห็นภาพรวมและประเมินสถานการณ์ได้อย่างรวดเร็ว',
                     kpiLevelTitle: 'ระดับน้ำปัจจุบัน',
                     kpiLevelUnit: 'เทียบกับระดับตลิ่ง',
                     kpiFlowTitle: 'ปริมาณน้ำไหลผ่าน',
@@ -283,7 +334,7 @@
                     chartLabel: 'ระดับน้ำ',
                     chartTimeAxis: 'เวลา',
                     chartLevelAxis: 'ระดับน้ำ (เมตร รทก.)',
-                    chartTitle: 'ระดับน้ำ 24 ชั่วโมงย้อนหลัง',
+                    chartTitle: 'แนวโน้มระดับน้ำปัจจุบัน',
                     chartWarningLabel: 'ระดับเฝ้าระวัง',
                     chartCriticalLabel: 'ระดับวิกฤต',
                     unitMeter: 'ม.',
@@ -292,7 +343,16 @@
                         'P.1': 'P.1 (สะพานนวรัฐ, อ.เมือง)',
                         'P.67': 'P.67 (บ้านแม่แต, อ.สันทราย)',
                         'P.75': 'P.75 (บ้านท่าโป่ง, อ.แม่วาง)',
-                    }
+                    },
+                    day1: '24 ชั่วโมง',
+                    day3: '3 วัน',
+                    day7: '7 วัน',
+                    day30: '30 วัน',
+                    historicalTitle: 'ทบทวนเหตุการณ์น้ำท่วมในอดีต',
+                    historicalIntro: 'แผนภูมินี้แสดงการเปลี่ยนแปลงของระดับน้ำในช่วง 60 วัน ของเหตุการณ์น้ำท่วมครั้งใหญ่เมื่อปี 2565 (ระดับน้ำเกิน 5 เมตร) ที่สถานี P.1 เพื่อใช้เป็นข้อมูลอ้างอิงและเปรียบเทียบในอดีต',
+                    historicalChartTitle: 'เหตุการณ์น้ำท่วมปี 2565 (สถานี P.1)',
+                    historicalPeak: 'จุดสูงสุดในอดีต',
+                    historicalXAxis: 'วันที่'
                 }
             };
 
@@ -323,41 +383,77 @@
                 document.getElementById('status-critical-desc').textContent = t.statusCriticalDesc;
                 document.getElementById('footer-demo').textContent = t.footerDemo;
                 document.getElementById('footer-source').textContent = t.footerSource;
+                document.getElementById('btn-24h').textContent = t.day1;
+                document.getElementById('btn-3d').textContent = t.day3;
+                document.getElementById('btn-7d').textContent = t.day7;
+                document.getElementById('btn-30d').textContent = t.day30;
+                document.getElementById('historical-title').textContent = t.historicalTitle;
+                document.getElementById('historical-intro').textContent = t.historicalIntro;
                 
-                document.querySelectorAll('#lang-switcher .lang-btn').forEach(btn => {
+                document.querySelectorAll('#lang-switcher .control-btn').forEach(btn => {
                     btn.classList.toggle('active', btn.dataset.lang === lang);
                 });
 
                 populateStationSelect();
                 updateDashboard(stationSelect.value);
+                createHistoricalFloodChart();
             };
 
-            const generateHistoryData = (baseLevel, hours = 24) => {
+            const generateHistoryData = (baseLevel, days = 1) => {
                 let data = [];
                 let currentDate = new Date();
+                let hours = days * 24;
                 for (let i = hours; i >= 0; i--) {
                     let date = new Date(currentDate.getTime() - i * 60 * 60 * 1000);
                     let fluctuation = (Math.random() - 0.5) * 0.5;
                     let trend = (hours - i) / hours * (Math.random() * 0.3 - 0.1);
                     let level = baseLevel + fluctuation + trend;
+                    
+                    let timeFormat;
+                    if (days === 1) {
+                         timeFormat = date.toLocaleTimeString(currentLanguage, { hour: '2-digit', minute: '2-digit' });
+                    } else {
+                         timeFormat = date.toLocaleString(currentLanguage, { day: 'numeric', month: 'short', hour: '2-digit' });
+                    }
+
                     data.push({
-                        time: date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+                        time: timeFormat,
                         level: parseFloat(level.toFixed(2))
                     });
                 }
                 return data;
             };
+            
+            const generateHistoricalFloodData = () => {
+                let data = [];
+                let baseLevel = 2.5;
+                let peakDay = 30;
+                for (let i = 1; i <= 60; i++) {
+                    let level;
+                    if (i < peakDay) {
+                        level = baseLevel + (i / peakDay) * 2.0 + Math.random() * 0.5;
+                    } else {
+                        level = baseLevel + 2.0 - ((i - peakDay) / (60 - peakDay)) * 1.5 + Math.random() * 0.5;
+                    }
+                    if (i > 25 && i < 35) {
+                         level += (1 - Math.abs(i - peakDay)/5) * 2.1;
+                    }
+                    data.push(level.toFixed(2));
+                }
+                return data;
+            };
 
             const stationData = {
-                'P.1': { id: 'P.1', bank_level: 3.70, warning_level: 2.70, critical_level: 3.20, history: generateHistoryData(2.45), flow: 95.8 },
-                'P.67': { id: 'P.67', bank_level: 4.80, warning_level: 3.80, critical_level: 4.30, history: generateHistoryData(3.95), flow: 150.2 },
-                'P.75': { id: 'P.75', bank_level: 8.50, warning_level: 6.50, critical_level: 7.50, history: generateHistoryData(5.1), flow: 77.4 }
+                'P.1': { id: 'P.1', bank_level: 3.70, warning_level: 2.70, critical_level: 3.20, base_level: 2.45, flow: 95.8 },
+                'P.67': { id: 'P.67', bank_level: 4.80, warning_level: 3.80, critical_level: 4.30, base_level: 3.95, flow: 150.2 },
+                'P.75': { id: 'P.75', bank_level: 8.50, warning_level: 6.50, critical_level: 7.50, base_level: 5.1, flow: 77.4 }
             };
             
             const stationSelect = document.getElementById('station-select');
             
             const populateStationSelect = () => {
                 const t = translations[currentLanguage];
+                const currentVal = stationSelect.value;
                 stationSelect.innerHTML = '';
                 Object.values(stationData).forEach(station => {
                     const option = document.createElement('option');
@@ -365,6 +461,7 @@
                     option.textContent = t.stationNames[station.id];
                     stationSelect.appendChild(option);
                 });
+                if(currentVal) stationSelect.value = currentVal;
             };
 
             const updateDashboard = (stationId) => {
@@ -372,12 +469,13 @@
                 if (!data) return;
                 
                 const t = translations[currentLanguage];
-                const currentLevel = data.history[data.history.length - 1].level;
+                const history = generateHistoryData(data.base_level, currentTimeRange);
+                const currentLevel = history[history.length - 1].level;
                 
                 const levelCard = document.getElementById('level-card');
                 const flowCard = document.getElementById('flow-card');
                 const statusCard = document.getElementById('status-card');
-
+                
                 document.getElementById('current-level').textContent = `${currentLevel.toFixed(2)} ${t.unitMeter}`;
                 document.getElementById('kpi-level-unit').textContent = t.kpiLevelUnit;
                 document.getElementById('current-flow').textContent = data.flow.toFixed(2);
@@ -404,17 +502,17 @@
                 document.getElementById('threshold-info-title').textContent = `${t.thresholdInfoTitle} ${t.stationNames[data.id]}:`;
                 document.getElementById('threshold-info-details').textContent = `${t.bankLevel}: ${data.bank_level.toFixed(2)} ${t.unitMeter} | ${t.warningLevel}: ${data.warning_level.toFixed(2)} ${t.unitMeter} | ${t.criticalLevel}: ${data.critical_level.toFixed(2)} ${t.unitMeter}`;
                 
-                createOrUpdateChart(data);
+                createOrUpdateChart(data, history);
             };
 
-            const createOrUpdateChart = (stationData) => {
+            const createOrUpdateChart = (stationData, historyData) => {
                 const ctx = document.getElementById('waterLevelChart').getContext('2d');
                 if (waterLevelChart) {
                     waterLevelChart.destroy();
                 }
                 const t = translations[currentLanguage];
-                const labels = stationData.history.map(d => d.time);
-                const dataPoints = stationData.history.map(d => d.level);
+                const labels = historyData.map(d => d.time);
+                const dataPoints = historyData.map(d => d.level);
 
                 waterLevelChart = new Chart(ctx, {
                     type: 'line',
@@ -427,9 +525,8 @@
                             backgroundColor: 'rgba(59, 130, 246, 0.1)',
                             fill: true,
                             tension: 0.4,
-                            borderWidth: 3,
-                            pointRadius: 2,
-                            pointBackgroundColor: '#3b82f6'
+                            borderWidth: 2,
+                            pointRadius: 0,
                         }]
                     },
                     options: {
@@ -467,8 +564,69 @@
                 });
             };
             
+            const createHistoricalFloodChart = () => {
+                const ctx = document.getElementById('historicalFloodChart').getContext('2d');
+                if(historicalFloodChart) {
+                    historicalFloodChart.destroy();
+                }
+                const t = translations[currentLanguage];
+                const dataPoints = generateHistoricalFloodData();
+                
+                const labels = [];
+                const startDate = new Date('2022-09-06');
+                for (let i = 0; i < 60; i++) {
+                    const currentDate = new Date(startDate);
+                    currentDate.setDate(startDate.getDate() + i);
+                    labels.push(currentDate.toLocaleDateString(currentLanguage.split('-')[0], { month: 'short', day: 'numeric' }));
+                }
+
+                historicalFloodChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: `${t.chartLabel} (${t.unitMeter})`,
+                            data: dataPoints,
+                            borderColor: '#be123c',
+                            backgroundColor: 'rgba(190, 18, 60, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 0,
+                        }]
+                    },
+                     options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: {
+                                display: true,
+                                text: t.historicalChartTitle,
+                                font: { size: 18, weight: 'bold' },
+                                padding: { top: 10, bottom: 20 }
+                            },
+                             annotation: {
+                                annotations: {
+                                    majorFloodLine: {
+                                        type: 'line', yMin: 5.0, yMax: 5.0,
+                                        borderColor: '#991b1b', borderWidth: 3, borderDash: [8, 8],
+                                        label: { content: t.historicalPeak, enabled: true, position: 'end', backgroundColor: 'rgba(153, 27, 27, 0.8)', color: '#ffffff', font: { style: 'bold'} }
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: { beginAtZero: false, title: { display: true, text: t.chartLevelAxis } },
+                            x: { title: { display: true, text: t.historicalXAxis } }
+                        },
+                        interaction: { intersect: false, mode: 'index' },
+                    }
+                });
+            };
+            
             document.getElementById('lang-switcher').addEventListener('click', (e) => {
-                if (e.target.classList.contains('lang-btn')) {
+                if (e.target.classList.contains('control-btn')) {
                     const lang = e.target.dataset.lang;
                     if (lang) {
                         setLanguage(lang);
@@ -476,11 +634,25 @@
                 }
             });
             
+            document.getElementById('time-range-switcher').addEventListener('click', (e) => {
+                if (e.target.classList.contains('time-range-btn')) {
+                    const range = e.target.dataset.range;
+                    if (range) {
+                        currentTimeRange = parseInt(range, 10);
+                        document.querySelectorAll('#time-range-switcher .time-range-btn').forEach(btn => {
+                            btn.classList.toggle('active', btn.dataset.range === range);
+                        });
+                        updateDashboard(stationSelect.value);
+                    }
+                }
+            });
+
             stationSelect.addEventListener('change', (e) => {
                 updateDashboard(e.target.value);
             });
             
             setLanguage('th');
+            document.querySelector('#time-range-switcher .time-range-btn[data-range="1"]').classList.add('active');
         });
     </script>
 </body>
